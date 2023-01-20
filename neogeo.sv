@@ -51,6 +51,15 @@ module emu
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
 
+`ifdef MISTER_ENABLE_YC	
+	output 	[39:0]	 CHROMA_PHASE_INC,
+    output  [26:0]  COLORBURST_RANGE,
+	output 			PALFLAG,
+	output 			MULFLAG,
+	output 	[4:0]	CHROMAADD,
+	output	[4:0]	CHROMAMUL,
+	output 			YC_EN, // Enable YC to be build in the core.
+`endif
 	//Multiple resolutions are supported using different CE_PIXEL rates.
 	//Must be based on CLK_VIDEO
 	output        CE_PIXEL,
@@ -269,6 +278,10 @@ localparam CONF_STR = {
 	"-;",
 	"H0FS1,*,Load ROM set;",
 	"H1S1,ISOBIN,Load CD Image;",
+	"OV,Video Signal,RGBS/YPbPr,Y/C;",
+  	//"oKO,Chroma Add timing,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31;",
+  	//"oEI,Chroma Multiply,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31;",
+	//"oJ,Reverse,No,Yes;",
 	"-;",
 	"H3OP,FM,ON,OFF;",
 	"H3OQ,ADPCMA,ON,OFF;",
@@ -319,6 +332,27 @@ localparam CONF_STR = {
 	"V,v",`BUILD_DATE						// 
 };
 
+`ifdef MISTER_ENABLE_YC
+	parameter NTSC_REF = 3.579545;   
+	parameter PAL_REF = 4.43361875;
+	localparam [6:0] COLORBURST_START = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
+	localparam [9:0] COLORBURST_NTSC_END = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START;
+	localparam [9:0] COLORBURST_PAL_END = (10 * (CLK_VIDEO_PAL/PAL_REF)) + COLORBURST_START;
+ 
+	// Modified Variables
+    parameter CLK_VIDEO_NTSC = 48; // Must be filled E.g XX.XXX Hz 
+	parameter CLK_VIDEO_PAL = 48; // Must be filled E.g XX.XXX Hz 
+	localparam [39:0] NTSC_PHASE_INC = 40'd45812728099; // ((NTSC_REF**2^40) / CLK_VIDEO_NTSC);
+	localparam [39:0] PAL_PHASE_INC = 40'd45812728235; // ((PAL_REF*2^40) / CLK_VIDEO_PAL) ;
+
+	assign CHROMA_PHASE_INC = PALFLAG ?  (SYSTEM_TYPE[0] ? 40'd101558653516 : 40'd100853152548) : (SYSTEM_TYPE[0] ? 40'd81994830080 : 40'd81425421603); 
+	assign YC_EN = status[31];  // Change the status to match your configuration
+	assign PALFLAG = status[3];  // if applicable, Change the status to match your configuration. 
+	assign MULFLAG = 0;//status[51];
+	assign CHROMAADD =  0;//status[56:52];
+	assign CHROMAMUL =  0;//status[50:46];
+ 	assign COLORBURST_RANGE = {COLORBURST_START, COLORBURST_NTSC_END, COLORBURST_PAL_END};
+`endif
 
 ////////////////////   CLOCKS   ///////////////////
 
